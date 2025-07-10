@@ -140,118 +140,182 @@
     function initModulesTable() {
         const tableId = '#kt_list_table';
 
-        // Nếu DataTable đã được khởi tạo thì chỉ cần reload lại Ajax
+        console.log("🔄 Bắt đầu khởi tạo DataTable...");
+
+        // Kiểm tra nếu DataTable đã tồn tại
         if ($.fn.DataTable.isDataTable(tableId)) {
-            $(tableId).DataTable().ajax.reload(); // KHÔNG khởi tạo lại!
-            return;
+            console.log("⚠️ DataTable đã tồn tại, destroy và tạo lại...");
+            $(tableId).DataTable().destroy();
         }
 
-        // Nếu chưa khởi tạo thì khởi tạo mới
-        modulesTable = $(tableId).DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: {
-                url: '/vnkWWW/Api.ashx?fn=Modules',
-                type: 'POST',
-                data: function(d) {
-                    // Thêm tham số tìm kiếm vào request
-                    d.searchKeyword = $('#<%=txtSearch.ClientID%>').val() || '';
-                    d.departmentID = $('#<%=inpDepartmentID.ClientID%>').val() || '';
-                    console.log("Gửi dữ liệu tìm kiếm:", d);
-                    return d;
+        // Khởi tạo DataTable mới
+        try {
+            modulesTable = $(tableId).DataTable({
+                processing: true,
+                serverSide: true,
+                ajax: {
+                    url: '/vnkWWW/Api.ashx?fn=Modules',
+                    type: 'POST',
+                    data: function(d) {
+                        // Thêm tham số tìm kiếm vào request
+                        var searchKeyword = $('#<%=txtSearch.ClientID%>').val() || '';
+                        var departmentID = $('#<%=inpDepartmentID.ClientID%>').val() || '';
+                        
+                        d.searchKeyword = searchKeyword;
+                        d.departmentID = departmentID;
+                        
+                        console.log("📤 Gửi dữ liệu tìm kiếm:", {
+                            searchKeyword: searchKeyword,
+                            departmentID: departmentID,
+                            allData: d
+                        });
+                        return d;
+                    },
+                    dataSrc: function (json) {
+                        console.log("📥 Dữ liệu từ server:", json);
+                        return json.data;
+                    },
+                    error: function (xhr, error, thrown) {
+                        console.error("❌ AJAX Lỗi:", {
+                            xhr: xhr,
+                            error: error,
+                            thrown: thrown,
+                            responseText: xhr.responseText
+                        });
+                    },
+                    beforeSend: function(xhr, settings) {
+                        console.log("📤 Trước khi gửi AJAX:", settings.url, settings.data);
+                    },
+                    complete: function(xhr, status) {
+                        console.log("✅ AJAX hoàn thành:", status);
+                        $('#<%=txtSearch.ClientID%>').removeClass('loading');
+                    }
                 },
-                dataSrc: function (json) {
-                    console.log("Dữ liệu từ server:", json);
-                    return json.data;
+
+                pageLength: 10,
+                pagingType: "full_numbers",
+                lengthMenu: [[10, 30, 50, 100, -1], [10, 30, 50, 100, "Tất cả"]],
+                language: {
+                    url: 'https://nsv-cdn.prweb.com.vn/vnkresource/json/vietnamese.json'
                 },
-                error: function (xhr, error, thrown) {
-                    console.error("AJAX Lỗi:", xhr.responseText);
-                }
-            },
+                dom: `
+                rt
+                <"row mt-3" <"col-sm-12 col-md-6 d-flex align-items-center justify-content-md-start"
+                        l
+                        i
+                    >
+                    <"col-sm-12 col-md-6 d-flex align-items-center justify-content-md-end"
+                        p
+                    > >`,
 
-            pageLength: 10,
-            pagingType: "full_numbers",
-            lengthMenu: [[10, 30, 50, 100, -1], [10, 30, 50, 100, "Tất cả"]],
-            language: {
-                url: 'https://nsv-cdn.prweb.com.vn/vnkresource/json/vietnamese.json'
-            },
-            dom: `
-            rt
-            <"row mt-3" <"col-sm-12 col-md-6 d-flex align-items-center justify-content-md-start"
-                    l
-                    i
-                >
-                <"col-sm-12 col-md-6 d-flex align-items-center justify-content-md-end"
-                    p
-                > >`,
+                columns: [
+                    { data: null, render: r => `<input type="checkbox" id="kCh_${r.ModulesID}" name="TChoose_${r.ModulesID}" value="vnk1">` },
+                    { data: null, render: (data, type, row, meta) => meta.row + 1 },
+                    { data: 'ModulesID' },
+                    { data: 'ModulesCode' },
+                    { data: 'ModulesName' },
+                    { data: 'ModulesNameSort' },
+                    { data: 'CreditsFee' },
+                    { data: 'Credits' },
+                    { data: 'CreditsLT' },
+                    { data: 'CreditsTH' },
+                    { data: 'CreditsK' },
+                    { data: 'CreditsK1' },
+                    { data: 'CreditsOnline' },
+                    { data: null, render: r => `<a href="/qldt/print/decuongchitiethocphan.htm?modulesid=${r.ModulesID}" target="_blank"><i class="fa fa-print"></i></a>` },
+                    { data: 'DepartmentName' },
+                    { data: 'SoLopHP' },
+                    { data: null, render: r => `<a href="/qldt/print/decuongchitiethocphan.htm?modulesid=${r.ModulesID}" target="_blank"><i class="fa fa-print"></i></a>` },
+                    { data: null, render: r => `<a href="?modul=modules&ctr=edit&id=${r.ModulesID}&lg=vn"><i class="ki-outline ki-pencil fs-3 "></i></a>` },
+                    { data: null, render: r => `<input type="checkbox" id="kCh_${r.ModulesID}" name="TChoose_${r.ModulesID}" value="vnk1">` },
+                    { data: null, render: r => `<input type="checkbox" id="kCh_${r.ModulesID}" name="TChoose_${r.ModulesID}" value="vnk1">` }
+                ]
+            });
 
-            columns: [
-                { data: null, render: r => `<input type="checkbox" id="kCh_${r.ModulesID}" name="TChoose_${r.ModulesID}" value="vnk1">` },
-                { data: null, render: (data, type, row, meta) => meta.row + 1 },
-                { data: 'ModulesID' },
-                { data: 'ModulesCode' },
-                { data: 'ModulesName' },
-                { data: 'ModulesNameSort' },
-                { data: 'CreditsFee' },
-                { data: 'Credits' },
-                { data: 'CreditsLT' },
-                { data: 'CreditsTH' },
-                { data: 'CreditsK' },
-                { data: 'CreditsK1' },
-                { data: 'CreditsOnline' },
-                { data: null, render: r => `<a href="/qldt/print/decuongchitiethocphan.htm?modulesid=${r.ModulesID}" target="_blank"><i class="fa fa-print"></i></a>` },
-                { data: 'DepartmentName' },
-                { data: 'SoLopHP' },
-                { data: null, render: r => `<a href="/qldt/print/decuongchitiethocphan.htm?modulesid=${r.ModulesID}" target="_blank"><i class="fa fa-print"></i></a>` },
-                { data: null, render: r => `<a href="?modul=modules&ctr=edit&id=${r.ModulesID}&lg=vn"><i class="ki-outline ki-pencil fs-3 "></i></a>` },
-                { data: null, render: r => `<input type="checkbox" id="kCh_${r.ModulesID}" name="TChoose_${r.ModulesID}" value="vnk1">` },
-                { data: null, render: r => `<input type="checkbox" id="kCh_${r.ModulesID}" name="TChoose_${r.ModulesID}" value="vnk1">` }
-            ]
-        });
+            console.log("✅ DataTable đã được khởi tạo thành công:", modulesTable);
 
+            // Gắn event cho DataTable
+            modulesTable.on('xhr.dt', function() {
+                console.log("🔄 AJAX request đã hoàn thành");
+                $('#<%=txtSearch.ClientID%>').removeClass('loading');
+            });
+
+        } catch (error) {
+            console.error("❌ Lỗi khi khởi tạo DataTable:", error);
+        }
     }
 
     function setupSearchEvents() {
+        console.log("🔗 Thiết lập sự kiện tìm kiếm...");
+        
+        // Kiểm tra element tồn tại
+        var txtSearchElement = $('#<%=txtSearch.ClientID%>');
+        var departmentElement = $('#<%=inpDepartmentID.ClientID%>');
+        
+        console.log("🔍 TextSearch element:", txtSearchElement.length > 0 ? "Tìm thấy" : "Không tìm thấy");
+        console.log("🏢 Department element:", departmentElement.length > 0 ? "Tìm thấy" : "Không tìm thấy");
+
         // Sự kiện tìm kiếm cho textbox txtSearch
-        $('#<%=txtSearch.ClientID%>').on('input keyup', function() {
+        txtSearchElement.on('input keyup', function() {
             var searchValue = $(this).val();
+            console.log("⌨️ Người dùng gõ:", searchValue);
+            
+            // Thêm loading class
+            $(this).addClass('loading');
             
             // Clear timeout cũ
             clearTimeout(searchTimeout);
             
-            // Tạo timeout mới để debounce (tránh gửi quá nhiều request)
+            // Tạo timeout mới để debounce
             searchTimeout = setTimeout(function() {
-                console.log("Tìm kiếm với từ khóa:", searchValue);
-                if (modulesTable) {
-                    modulesTable.ajax.reload(null, false); // reload mà không reset page
+                console.log("🔍 Bắt đầu tìm kiếm với từ khóa:", searchValue);
+                
+                // Kiểm tra DataTable có tồn tại không
+                if (modulesTable && $.fn.DataTable.isDataTable('#kt_list_table')) {
+                    console.log("✅ DataTable tồn tại, đang reload...");
+                    try {
+                        modulesTable.ajax.reload(function(json) {
+                            console.log("🔄 Reload hoàn thành:", json);
+                        }, false);
+                    } catch (error) {
+                        console.error("❌ Lỗi khi reload DataTable:", error);
+                    }
+                } else {
+                    console.error("❌ DataTable không tồn tại hoặc chưa được khởi tạo");
+                    console.log("DataTable object:", modulesTable);
+                    console.log("Is DataTable:", $.fn.DataTable.isDataTable('#kt_list_table'));
                 }
-            }, 500); // Đợi 500ms sau khi người dùng ngừng gõ
+            }, 500);
         });
 
         // Sự kiện thay đổi dropdown department
-        $('#<%=inpDepartmentID.ClientID%>').on('change', function() {
-            console.log("Đổi đơn vị đào tạo:", $(this).val());
-            if (modulesTable) {
+        departmentElement.on('change', function() {
+            var departmentValue = $(this).val();
+            console.log("🏢 Đổi đơn vị đào tạo:", departmentValue);
+            
+            if (modulesTable && $.fn.DataTable.isDataTable('#kt_list_table')) {
+                console.log("✅ Reload DataTable cho department...");
                 modulesTable.ajax.reload(null, false);
+            } else {
+                console.error("❌ DataTable không tồn tại khi thay đổi department");
             }
         });
+        
+        console.log("✅ Sự kiện tìm kiếm đã được thiết lập");
     }
 
     $(document).ready(function () {
+        console.log("🚀 Document ready - Bắt đầu khởi tạo...");
+        
+        // Khởi tạo DataTable trước
         initModulesTable();
-        setupSearchEvents();
         
-        // Thêm loading indicator
-        $('#<%=txtSearch.ClientID%>').on('input', function() {
-            $(this).addClass('loading');
-        });
+        // Đợi một chút rồi mới setup events
+        setTimeout(function() {
+            setupSearchEvents();
+        }, 1000);
         
-        // Xóa loading indicator khi AJAX hoàn thành
-        if (modulesTable) {
-            modulesTable.on('xhr.dt', function() {
-                $('#<%=txtSearch.ClientID%>').removeClass('loading');
-            });
-        }
+        console.log("✅ Khởi tạo hoàn thành");
     });
 
 </script>
