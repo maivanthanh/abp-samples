@@ -1,0 +1,316 @@
+@page "/credit-fee-management"
+@using CreditFeeManagement.Components
+@using CreditFeeManagement.Services
+@using CreditFeeManagement.ViewModels
+@using CreditFeeManagement.Models
+@inject ICreditFeeService CreditFeeService
+@inject IJSRuntime JSRuntime
+@inject ILogger<CreditFeeManagement> Logger
+
+<PageTitle>Quản lý phí tín chỉ</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">Quản lý phí tín chỉ</h1>
+                <div class="btn-group">
+                    <button class="btn btn-outline-secondary" @onclick="RefreshData" disabled="@isLoading">
+                        <i class="fas fa-sync-alt @(isLoading ? "fa-spin" : "")"></i> Làm mới
+                    </button>
+                    <button class="btn btn-outline-info" @onclick="ValidateData" disabled="@isLoading">
+                        <i class="fas fa-check-circle"></i> Kiểm tra dữ liệu
+                    </button>
+                </div>
+            </div>
+
+            @if (isLoading)
+            {
+                <div class="text-center p-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Đang tải...</span>
+                    </div>
+                    <p class="mt-2">Đang tải dữ liệu...</p>
+                </div>
+            }
+            else if (viewModel != null)
+            {
+                <CreditFeeMatrix ViewModel="@viewModel" 
+                                OnSave="@SaveData" 
+                                OnExport="@ExportData" 
+                                OnImport="@ImportData" />
+            }
+            else
+            {
+                <div class="alert alert-warning" role="alert">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Không thể tải dữ liệu. Vui lòng thử lại.
+                </div>
+            }
+
+            <!-- Validation Results Modal -->
+            @if (validationResult != null && (validationResult.Errors.Any() || validationResult.Warnings.Any()))
+            {
+                <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    Kết quả kiểm tra dữ liệu
+                                </h5>
+                                <button type="button" class="btn-close" @onclick="CloseValidationModal"></button>
+                            </div>
+                            <div class="modal-body">
+                                @if (validationResult.Errors.Any())
+                                {
+                                    <div class="alert alert-danger">
+                                        <h6><i class="fas fa-times-circle"></i> Lỗi (@validationResult.Errors.Count):</h6>
+                                        <ul class="mb-0">
+                                            @foreach (var error in validationResult.Errors)
+                                            {
+                                                <li>@error</li>
+                                            }
+                                        </ul>
+                                    </div>
+                                }
+
+                                @if (validationResult.Warnings.Any())
+                                {
+                                    <div class="alert alert-warning">
+                                        <h6><i class="fas fa-exclamation-triangle"></i> Cảnh báo (@validationResult.Warnings.Count):</h6>
+                                        <ul class="mb-0">
+                                            @foreach (var warning in validationResult.Warnings)
+                                            {
+                                                <li>@warning</li>
+                                            }
+                                        </ul>
+                                    </div>
+                                }
+
+                                @if (!validationResult.Errors.Any() && !validationResult.Warnings.Any())
+                                {
+                                    <div class="alert alert-success">
+                                        <i class="fas fa-check-circle"></i>
+                                        Dữ liệu hợp lệ! Không có lỗi hoặc cảnh báo nào.
+                                    </div>
+                                }
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" @onclick="CloseValidationModal">
+                                    Đóng
+                                </button>
+                                @if (validationResult.IsValid)
+                                {
+                                    <button type="button" class="btn btn-success" @onclick="SaveDataAfterValidation">
+                                        <i class="fas fa-save"></i> Lưu dữ liệu
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Success/Error Messages -->
+            @if (!string.IsNullOrEmpty(messageText))
+            {
+                <div class="alert @messageClass alert-dismissible fade show mt-3" role="alert">
+                    <i class="fas @messageIcon"></i>
+                    @messageText
+                    <button type="button" class="btn-close" @onclick="ClearMessage"></button>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Hidden file input for import -->
+<input type="file" @ref="fileInput" style="display:none" @onchange="OnFileSelected" accept=".xlsx,.xls" />
+
+@code {
+    private CreditFeeMatrixViewModel? viewModel;
+    private bool isLoading = true;
+    private ValidationResult? validationResult;
+    private string messageText = string.Empty;
+    private string messageClass = string.Empty;
+    private string messageIcon = string.Empty;
+    private ElementReference fileInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            viewModel = await CreditFeeService.GetMatrixViewModelAsync();
+            ShowMessage("Đã tải dữ liệu thành công", "success", "fa-check-circle");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading data");
+            ShowMessage($"Lỗi khi tải dữ liệu: {ex.Message}", "danger", "fa-exclamation-circle");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadData();
+    }
+
+    private async Task SaveData(List<CreditFee> creditFees)
+    {
+        try
+        {
+            var success = await CreditFeeService.SaveCreditFeesAsync(creditFees);
+            if (success)
+            {
+                ShowMessage($"Đã lưu thành công {creditFees.Count} bản ghi", "success", "fa-check-circle");
+            }
+            else
+            {
+                ShowMessage("Có lỗi xảy ra khi lưu dữ liệu", "danger", "fa-exclamation-circle");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving data");
+            ShowMessage($"Lỗi khi lưu: {ex.Message}", "danger", "fa-exclamation-circle");
+        }
+    }
+
+    private async Task ValidateData()
+    {
+        if (viewModel == null) return;
+
+        try
+        {
+            isLoading = true;
+            validationResult = await CreditFeeService.ValidateMatrixDataAsync(viewModel);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error validating data");
+            ShowMessage($"Lỗi khi kiểm tra dữ liệu: {ex.Message}", "danger", "fa-exclamation-circle");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveDataAfterValidation()
+    {
+        if (viewModel != null)
+        {
+            var creditFees = viewModel.ToEntityList();
+            await SaveData(creditFees);
+        }
+        CloseValidationModal();
+    }
+
+    private void CloseValidationModal()
+    {
+        validationResult = null;
+    }
+
+    private async Task ExportData(CreditFeeMatrixViewModel vm)
+    {
+        try
+        {
+            isLoading = true;
+            var excelData = await CreditFeeService.ExportToExcelAsync(vm);
+            var fileName = $"credit_fees_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            ShowMessage("Đã xuất file Excel thành công", "success", "fa-file-excel");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error exporting data");
+            ShowMessage($"Lỗi khi xuất Excel: {ex.Message}", "danger", "fa-exclamation-circle");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ImportData(CreditFeeMatrixViewModel vm)
+    {
+        await JSRuntime.InvokeVoidAsync("triggerFileInput", fileInput);
+    }
+
+    private async Task OnFileSelected(ChangeEventArgs e)
+    {
+        try
+        {
+            isLoading = true;
+            var files = ((InputFileChangeEventArgs)e).GetMultipleFiles(1);
+            if (files.Count > 0)
+            {
+                var file = files[0];
+                using var stream = new MemoryStream();
+                await file.OpenReadStream().CopyToAsync(stream);
+                
+                var importedViewModel = await CreditFeeService.ImportFromExcelAsync(stream.ToArray());
+                viewModel = importedViewModel;
+                
+                ShowMessage("Đã nhập file Excel thành công", "success", "fa-file-import");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error importing data");
+            ShowMessage($"Lỗi khi nhập Excel: {ex.Message}", "danger", "fa-exclamation-circle");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowMessage(string text, string type, string icon)
+    {
+        messageText = text;
+        messageClass = $"alert-{type}";
+        messageIcon = icon;
+        
+        // Auto hide after 5 seconds
+        _ = Task.Delay(5000).ContinueWith(_ => ClearMessage());
+    }
+
+    private void ClearMessage()
+    {
+        messageText = string.Empty;
+        messageClass = string.Empty;
+        messageIcon = string.Empty;
+        InvokeAsync(StateHasChanged);
+    }
+}
+
+<script>
+    window.triggerFileInput = (element) => {
+        element.click();
+    };
+
+    window.downloadFile = (filename, content, contentType) => {
+        const blob = new Blob([content], { type: contentType });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    };
+</script>
