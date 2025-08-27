@@ -1,0 +1,64 @@
+@page "/credit-fee-management"
+@using BookStore.CreditFees
+@using BookStore.StudentTypes
+@using BookStore.ModuleTypes
+@using Volo.Abp.Application.Dtos
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@inject ICreditFeeAppService CreditFeeAppService
+@inject IStudentTypeAppService StudentTypeAppService
+@inject IModuleTypeAppService ModuleTypeAppService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Quản lý mức phí tín chỉ</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-money-bill-wave me-2"></i>
+                        Quản lý mức phí tín chỉ
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <!-- Tab Navigation -->
+                    <ul class="nav nav-tabs" id="creditFeeTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="bulk-input-tab" data-bs-toggle="tab" data-bs-target="#bulk-input" type="button" role="tab">
+                                <i class="fas fa-table me-1"></i>Nhập dữ liệu hàng loạt
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="view-data-tab" data-bs-toggle="tab" data-bs-target="#view-data" type="button" role="tab">
+                                <i class="fas fa-eye me-1"></i>Xem dữ liệu
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content mt-3" id="creditFeeTabContent">
+                        <!-- Bulk Input Tab -->
+                        <div class="tab-pane fade show active" id="bulk-input" role="tabpanel">
+                            <BulkCreditFeeInput />
+                        </div>
+
+                        <!-- View Data Tab -->
+                        <div class="tab-pane fade" id="view-data" role="tabpanel">
+                            <CreditFeeDataView />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+}

@@ -1,0 +1,270 @@
+@using BookStore.CreditFees
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@inject ICreditFeeAppService CreditFeeAppService
+@inject IJSRuntime JSRuntime
+
+<div class="credit-fee-data-view">
+    <!-- Filter Section -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="form-group">
+                <label for="filterAcademicYear" class="form-label">
+                    <i class="fas fa-calendar-alt me-1"></i>Năm học
+                </label>
+                <input type="text" 
+                       id="filterAcademicYear" 
+                       class="form-control" 
+                       @bind="FilterAcademicYear" 
+                       placeholder="VD: 2024-2025" />
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="form-group">
+                <label for="filterSemester" class="form-label">
+                    <i class="fas fa-graduation-cap me-1"></i>Học kỳ
+                </label>
+                <select id="filterSemester" class="form-select" @bind="FilterSemester">
+                    <option value="">Tất cả học kỳ</option>
+                    <option value="1">Học kỳ 1</option>
+                    <option value="2">Học kỳ 2</option>
+                    <option value="3">Học kỳ 3</option>
+                    <option value="Hè">Học kỳ Hè</option>
+                </select>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="form-group">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary" @onclick="LoadData">
+                        <i class="fas fa-search me-1"></i>Tìm kiếm
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ExportToExcel">
+                        <i class="fas fa-file-excel me-1"></i>Xuất Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    @if (TableData != null && TableData.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover" id="creditFeeTable">
+                <thead class="table-dark sticky-top">
+                    <tr>
+                        <th class="text-center align-middle" style="min-width: 150px;">
+                            <i class="fas fa-users me-1"></i>Loại sinh viên
+                        </th>
+                        <th class="text-center align-middle" style="min-width: 150px;">
+                            <i class="fas fa-book me-1"></i>Loại môn học
+                        </th>
+                        <th class="text-center" style="min-width: 120px;">
+                            <span class="badge bg-success">Học lần 1</span>
+                        </th>
+                        <th class="text-center" style="min-width: 120px;">
+                            <span class="badge bg-warning">Học lần 2</span>
+                        </th>
+                        <th class="text-center" style="min-width: 120px;">
+                            <span class="badge bg-info">Cải thiện</span>
+                        </th>
+                        <th class="text-center" style="min-width: 120px;">
+                            <span class="badge bg-danger">Học lại</span>
+                        </th>
+                        <th class="text-center" style="min-width: 120px;">
+                            <span class="badge bg-secondary">Đặc biệt</span>
+                        </th>
+                        <th class="text-center" style="min-width: 100px;">
+                            <i class="fas fa-cogs me-1"></i>Thao tác
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in TableData)
+                    {
+                        <tr>
+                            <td class="fw-bold">
+                                <i class="fas fa-user-graduate me-1"></i>@item.StudentTypeName
+                            </td>
+                            <td class="fw-bold">
+                                <i class="fas fa-book-open me-1"></i>@item.ModuleTypeName
+                            </td>
+                            <td class="text-end">
+                                <span class="text-success fw-bold">@item.FirstAttemptFee.ToString("N0")</span>
+                            </td>
+                            <td class="text-end">
+                                <span class="text-warning fw-bold">@item.SecondAttemptFee.ToString("N0")</span>
+                            </td>
+                            <td class="text-end">
+                                <span class="text-info fw-bold">@item.ImprovementFee.ToString("N0")</span>
+                            </td>
+                            <td class="text-end">
+                                <span class="text-danger fw-bold">@item.RetakeFee.ToString("N0")</span>
+                            </td>
+                            <td class="text-end">
+                                <span class="text-secondary fw-bold">@item.SpecialFee.ToString("N0")</span>
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-primary" @onclick="() => EditItem(item)">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" @onclick="() => DeleteItem(item)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Summary -->
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <i class="fas fa-chart-bar me-1"></i>Thống kê
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-primary">@TableData.Count</h4>
+                                    <small class="text-muted">Tổng số dòng</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-success">@TableData.Select(x => x.StudentTypeName).Distinct().Count()</h4>
+                                    <small class="text-muted">Loại sinh viên</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-info">@TableData.Select(x => x.ModuleTypeName).Distinct().Count()</h4>
+                                    <small class="text-muted">Loại môn học</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-warning">@TableData.Sum(x => x.FirstAttemptFee + x.SecondAttemptFee + x.ImprovementFee + x.RetakeFee + x.SpecialFee).ToString("N0")</h4>
+                                    <small class="text-muted">Tổng mức phí (VNĐ)</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- No Data Message -->
+    @if (TableData != null && !TableData.Any() && !IsLoading)
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-database fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">Không có dữ liệu</h5>
+            <p class="text-muted">Vui lòng chọn năm học và học kỳ để xem dữ liệu</p>
+        </div>
+    }
+
+    <!-- Loading Spinner -->
+    @if (IsLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Đang tải...</span>
+            </div>
+            <p class="mt-2">Đang tải dữ liệu...</p>
+        </div>
+    }
+
+    <!-- Success/Error Messages -->
+    @if (!string.IsNullOrEmpty(Message))
+    {
+        <div class="alert @(IsSuccess ? "alert-success" : "alert-danger") alert-dismissible fade show mt-3" role="alert">
+            <i class="fas @(IsSuccess ? "fa-check-circle" : "fa-exclamation-triangle") me-2"></i>
+            @Message
+            <button type="button" class="btn-close" @onclick="() => Message = string.Empty"></button>
+        </div>
+    }
+</div>
+
+@code {
+    private string FilterAcademicYear { get; set; } = DateTime.Now.Year + "-" + (DateTime.Now.Year + 1);
+    private string FilterSemester { get; set; } = "1";
+    
+    private List<CreditFeeTableDto> TableData { get; set; } = new();
+    
+    private bool IsLoading { get; set; } = false;
+    private string Message { get; set; } = string.Empty;
+    private bool IsSuccess { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        if (string.IsNullOrEmpty(FilterAcademicYear) || string.IsNullOrEmpty(FilterSemester))
+        {
+            ShowMessage("Vui lòng chọn năm học và học kỳ", false);
+            return;
+        }
+
+        try
+        {
+            IsLoading = true;
+            TableData = await CreditFeeAppService.GetTableDataAsync(FilterAcademicYear, FilterSemester);
+            IsLoading = false;
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"Lỗi khi tải dữ liệu: {ex.Message}", false);
+            IsLoading = false;
+        }
+    }
+
+    private async Task ExportToExcel()
+    {
+        if (!TableData.Any())
+        {
+            ShowMessage("Không có dữ liệu để xuất", false);
+            return;
+        }
+
+        try
+        {
+            // This would be implemented with a proper Excel export library
+            ShowMessage("Tính năng xuất Excel đang được phát triển", false);
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"Lỗi khi xuất Excel: {ex.Message}", false);
+        }
+    }
+
+    private void EditItem(CreditFeeTableDto item)
+    {
+        // This would open an edit modal
+        ShowMessage($"Chỉnh sửa: {item.StudentTypeName} - {item.ModuleTypeName}", true);
+    }
+
+    private async Task DeleteItem(CreditFeeTableDto item)
+    {
+        // This would show a confirmation dialog and delete the item
+        ShowMessage($"Xóa: {item.StudentTypeName} - {item.ModuleTypeName}", true);
+    }
+
+    private void ShowMessage(string message, bool isSuccess)
+    {
+        Message = message;
+        IsSuccess = isSuccess;
+        StateHasChanged();
+    }
+}

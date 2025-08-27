@@ -1,0 +1,399 @@
+@using BookStore.CreditFees
+@using BookStore.StudentTypes
+@using BookStore.ModuleTypes
+@using Volo.Abp.Application.Dtos
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@inject ICreditFeeAppService CreditFeeAppService
+@inject IStudentTypeAppService StudentTypeAppService
+@inject IModuleTypeAppService ModuleTypeAppService
+@inject IJSRuntime JSRuntime
+
+<div class="bulk-credit-fee-input">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="form-group">
+                <label for="academicYear" class="form-label">
+                    <i class="fas fa-calendar-alt me-1"></i>Năm học
+                </label>
+                <input type="text" 
+                       id="academicYear" 
+                       class="form-control" 
+                       @bind="AcademicYear" 
+                       placeholder="VD: 2024-2025" />
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="form-group">
+                <label for="semester" class="form-label">
+                    <i class="fas fa-graduation-cap me-1"></i>Học kỳ
+                </label>
+                <select id="semester" class="form-select" @bind="Semester">
+                    <option value="">Chọn học kỳ</option>
+                    <option value="1">Học kỳ 1</option>
+                    <option value="2">Học kỳ 2</option>
+                    <option value="3">Học kỳ 3</option>
+                    <option value="Hè">Học kỳ Hè</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="LoadExistingData">
+                    <i class="fas fa-download me-1"></i>Tải dữ liệu hiện tại
+                </button>
+                <button type="button" class="btn btn-outline-success btn-sm" @onclick="ApplyToAll">
+                    <i class="fas fa-magic me-1"></i>Áp dụng cho tất cả
+                </button>
+                <button type="button" class="btn btn-outline-info btn-sm" @onclick="CopyFromPrevious">
+                    <i class="fas fa-copy me-1"></i>Sao chép từ kỳ trước
+                </button>
+                <button type="button" class="btn btn-outline-warning btn-sm" @onclick="ClearAll">
+                    <i class="fas fa-eraser me-1"></i>Xóa tất cả
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    @if (StudentTypes != null && ModuleTypes != null)
+    {
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="table-dark sticky-top">
+                    <tr>
+                        <th rowspan="2" class="text-center align-middle" style="min-width: 200px;">
+                            <i class="fas fa-users me-1"></i>Loại sinh viên
+                        </th>
+                        <th rowspan="2" class="text-center align-middle" style="min-width: 200px;">
+                            <i class="fas fa-book me-1"></i>Loại môn học
+                        </th>
+                        <th colspan="5" class="text-center">
+                            <i class="fas fa-money-bill-wave me-1"></i>Mức phí (VNĐ)
+                        </th>
+                    </tr>
+                    <tr>
+                        <th class="text-center" style="min-width: 120px;">
+                            <span class="badge bg-success">Học lần 1</span>
+                        </th>
+                        <th class="text-center" style="min-width: 120px;">
+                            <span class="badge bg-warning">Học lần 2</span>
+                        </th>
+                        <th class="text-center" style="min-width: 120px;">
+                            <span class="badge bg-info">Cải thiện</span>
+                        </th>
+                        <th class="text-center" style="min-width: 120px;">
+                            <span class="badge bg-danger">Học lại</span>
+                        </th>
+                        <th class="text-center" style="min-width: 120px;">
+                            <span class="badge bg-secondary">Đặc biệt</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var studentType in StudentTypes)
+                    {
+                        @foreach (var moduleType in ModuleTypes)
+                        {
+                            var key = $"{studentType.Id}_{moduleType.Id}";
+                            var feeData = FeeMatrix.ContainsKey(key) ? FeeMatrix[key] : new Dictionary<StudyAttemptType, decimal>();
+                            
+                            <tr>
+                                <td class="fw-bold">
+                                    <i class="fas fa-user-graduate me-1"></i>@studentType.Name
+                                </td>
+                                <td class="fw-bold">
+                                    <i class="fas fa-book-open me-1"></i>@moduleType.Name
+                                </td>
+                                <td>
+                                    <input type="number" 
+                                           class="form-control form-control-sm text-end" 
+                                           @bind="feeData[StudyAttemptType.FirstAttempt]" 
+                                           @bind:format="N0"
+                                           placeholder="0" />
+                                </td>
+                                <td>
+                                    <input type="number" 
+                                           class="form-control form-control-sm text-end" 
+                                           @bind="feeData[StudyAttemptType.SecondAttempt]" 
+                                           @bind:format="N0"
+                                           placeholder="0" />
+                                </td>
+                                <td>
+                                    <input type="number" 
+                                           class="form-control form-control-sm text-end" 
+                                           @bind="feeData[StudyAttemptType.Improvement]" 
+                                           @bind:format="N0"
+                                           placeholder="0" />
+                                </td>
+                                <td>
+                                    <input type="number" 
+                                           class="form-control form-control-sm text-end" 
+                                           @bind="feeData[StudyAttemptType.Retake]" 
+                                           @bind:format="N0"
+                                           placeholder="0" />
+                                </td>
+                                <td>
+                                    <input type="number" 
+                                           class="form-control form-control-sm text-end" 
+                                           @bind="feeData[StudyAttemptType.Special]" 
+                                           @bind:format="N0"
+                                           placeholder="0" />
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <span class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Tổng cộng: @(StudentTypes.Count * ModuleTypes.Count) dòng dữ liệu
+                        </span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-secondary" @onclick="ValidateData">
+                            <i class="fas fa-check-circle me-1"></i>Kiểm tra dữ liệu
+                        </button>
+                        <button type="button" class="btn btn-primary" @onclick="SaveData" disabled="@(!IsValid)">
+                            <i class="fas fa-save me-1"></i>Lưu dữ liệu
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Loading Spinner -->
+    @if (IsLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Đang tải...</span>
+            </div>
+            <p class="mt-2">Đang tải dữ liệu...</p>
+        </div>
+    }
+
+    <!-- Success/Error Messages -->
+    @if (!string.IsNullOrEmpty(Message))
+    {
+        <div class="alert @(IsSuccess ? "alert-success" : "alert-danger") alert-dismissible fade show mt-3" role="alert">
+            <i class="fas @(IsSuccess ? "fa-check-circle" : "fa-exclamation-triangle") me-2"></i>
+            @Message
+            <button type="button" class="btn-close" @onclick="() => Message = string.Empty"></button>
+        </div>
+    }
+</div>
+
+@code {
+    private string AcademicYear { get; set; } = DateTime.Now.Year + "-" + (DateTime.Now.Year + 1);
+    private string Semester { get; set; } = "1";
+    
+    private List<StudentTypeDto> StudentTypes { get; set; } = new();
+    private List<ModuleTypeDto> ModuleTypes { get; set; } = new();
+    private Dictionary<string, Dictionary<StudyAttemptType, decimal>> FeeMatrix { get; set; } = new();
+    
+    private bool IsLoading { get; set; } = true;
+    private bool IsValid { get; set; } = false;
+    private string Message { get; set; } = string.Empty;
+    private bool IsSuccess { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            IsLoading = true;
+            
+            // Load student types and module types
+            var studentTypesResult = await StudentTypeAppService.GetListAsync(new GetStudentTypeListDto { MaxResultCount = 1000 });
+            var moduleTypesResult = await ModuleTypeAppService.GetListAsync(new GetModuleTypeListDto { MaxResultCount = 1000 });
+            
+            StudentTypes = studentTypesResult.Items.Where(x => x.IsActive).ToList();
+            ModuleTypes = moduleTypesResult.Items.Where(x => x.IsActive).ToList();
+            
+            // Initialize fee matrix
+            InitializeFeeMatrix();
+            
+            IsLoading = false;
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"Lỗi khi tải dữ liệu: {ex.Message}", false);
+            IsLoading = false;
+        }
+    }
+
+    private void InitializeFeeMatrix()
+    {
+        FeeMatrix.Clear();
+        
+        foreach (var studentType in StudentTypes)
+        {
+            foreach (var moduleType in ModuleTypes)
+            {
+                var key = $"{studentType.Id}_{moduleType.Id}";
+                FeeMatrix[key] = new Dictionary<StudyAttemptType, decimal>
+                {
+                    { StudyAttemptType.FirstAttempt, 0 },
+                    { StudyAttemptType.SecondAttempt, 0 },
+                    { StudyAttemptType.Improvement, 0 },
+                    { StudyAttemptType.Retake, 0 },
+                    { StudyAttemptType.Special, 0 }
+                };
+            }
+        }
+    }
+
+    private async Task LoadExistingData()
+    {
+        if (string.IsNullOrEmpty(AcademicYear) || string.IsNullOrEmpty(Semester))
+        {
+            ShowMessage("Vui lòng chọn năm học và học kỳ", false);
+            return;
+        }
+
+        try
+        {
+            IsLoading = true;
+            var tableData = await CreditFeeAppService.GetTableDataAsync(AcademicYear, Semester);
+            
+            // Clear existing data
+            InitializeFeeMatrix();
+            
+            // Load existing data
+            foreach (var item in tableData)
+            {
+                var key = $"{item.StudentTypeId}_{item.ModuleTypeId}";
+                if (FeeMatrix.ContainsKey(key))
+                {
+                    FeeMatrix[key][StudyAttemptType.FirstAttempt] = item.FirstAttemptFee;
+                    FeeMatrix[key][StudyAttemptType.SecondAttempt] = item.SecondAttemptFee;
+                    FeeMatrix[key][StudyAttemptType.Improvement] = item.ImprovementFee;
+                    FeeMatrix[key][StudyAttemptType.Retake] = item.RetakeFee;
+                    FeeMatrix[key][StudyAttemptType.Special] = item.SpecialFee;
+                }
+            }
+            
+            ShowMessage("Đã tải dữ liệu hiện tại thành công", true);
+            IsLoading = false;
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"Lỗi khi tải dữ liệu: {ex.Message}", false);
+            IsLoading = false;
+        }
+    }
+
+    private void ApplyToAll()
+    {
+        // Show modal to input default values
+        // This would be implemented with a modal component
+        ShowMessage("Tính năng đang được phát triển", false);
+    }
+
+    private void CopyFromPrevious()
+    {
+        // Copy from previous semester
+        ShowMessage("Tính năng đang được phát triển", false);
+    }
+
+    private void ClearAll()
+    {
+        InitializeFeeMatrix();
+        ShowMessage("Đã xóa tất cả dữ liệu", true);
+    }
+
+    private void ValidateData()
+    {
+        var hasData = FeeMatrix.Values.Any(fees => 
+            fees.Values.Any(fee => fee > 0));
+        
+        IsValid = hasData && !string.IsNullOrEmpty(AcademicYear) && !string.IsNullOrEmpty(Semester);
+        
+        if (IsValid)
+        {
+            ShowMessage("Dữ liệu hợp lệ", true);
+        }
+        else
+        {
+            ShowMessage("Dữ liệu không hợp lệ hoặc chưa có dữ liệu", false);
+        }
+    }
+
+    private async Task SaveData()
+    {
+        if (!IsValid)
+        {
+            ValidateData();
+            return;
+        }
+
+        try
+        {
+            IsLoading = true;
+            
+            var bulkInput = new BulkCreditFeeInputDto
+            {
+                AcademicYear = AcademicYear,
+                Semester = Semester,
+                FeeMatrix = new List<CreditFeeMatrixDto>()
+            };
+
+            foreach (var kvp in FeeMatrix)
+            {
+                var parts = kvp.Key.Split('_');
+                var studentTypeId = Guid.Parse(parts[0]);
+                var moduleTypeId = Guid.Parse(parts[1]);
+                
+                var studentType = StudentTypes.First(x => x.Id == studentTypeId);
+                var moduleType = ModuleTypes.First(x => x.Id == moduleTypeId);
+                
+                var matrixDto = new CreditFeeMatrixDto
+                {
+                    StudentTypeId = studentTypeId,
+                    StudentTypeName = studentType.Name,
+                    ModuleTypeId = moduleTypeId,
+                    ModuleTypeName = moduleType.Name,
+                    Fees = kvp.Value
+                };
+                
+                bulkInput.FeeMatrix.Add(matrixDto);
+            }
+
+            await CreditFeeAppService.BulkCreateAsync(bulkInput);
+            
+            ShowMessage("Lưu dữ liệu thành công!", true);
+            IsLoading = false;
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"Lỗi khi lưu dữ liệu: {ex.Message}", false);
+            IsLoading = false;
+        }
+    }
+
+    private void ShowMessage(string message, bool isSuccess)
+    {
+        Message = message;
+        IsSuccess = isSuccess;
+        StateHasChanged();
+    }
+}

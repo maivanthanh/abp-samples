@@ -1,0 +1,156 @@
+@using BookStore.CreditFees
+@using Microsoft.AspNetCore.Components
+
+<div class="modal fade" id="applyToAllModal" tabindex="-1" aria-labelledby="applyToAllModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="applyToAllModalLabel">
+                    <i class="fas fa-magic me-2"></i>Áp dụng giá trị cho tất cả
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label class="form-label">
+                                <span class="badge bg-success me-1">Học lần 1</span>
+                                Mức phí (VNĐ)
+                            </label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   @bind="DefaultFees[StudyAttemptType.FirstAttempt]" 
+                                   @bind:format="N0"
+                                   placeholder="0" />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label class="form-label">
+                                <span class="badge bg-warning me-1">Học lần 2</span>
+                                Mức phí (VNĐ)
+                            </label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   @bind="DefaultFees[StudyAttemptType.SecondAttempt]" 
+                                   @bind:format="N0"
+                                   placeholder="0" />
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label class="form-label">
+                                <span class="badge bg-info me-1">Cải thiện</span>
+                                Mức phí (VNĐ)
+                            </label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   @bind="DefaultFees[StudyAttemptType.Improvement]" 
+                                   @bind:format="N0"
+                                   placeholder="0" />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label class="form-label">
+                                <span class="badge bg-danger me-1">Học lại</span>
+                                Mức phí (VNĐ)
+                            </label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   @bind="DefaultFees[StudyAttemptType.Retake]" 
+                                   @bind:format="N0"
+                                   placeholder="0" />
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label class="form-label">
+                                <span class="badge bg-secondary me-1">Đặc biệt</span>
+                                Mức phí (VNĐ)
+                            </label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   @bind="DefaultFees[StudyAttemptType.Special]" 
+                                   @bind:format="N0"
+                                   placeholder="0" />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-percentage me-1"></i>Tỷ lệ tăng
+                            </label>
+                            <div class="input-group">
+                                <input type="number" 
+                                       class="form-control" 
+                                       @bind="IncreaseRate" 
+                                       placeholder="0" />
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <small class="form-text text-muted">
+                                Tăng giá trị theo tỷ lệ phần trăm
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Lưu ý:</strong> Giá trị này sẽ được áp dụng cho tất cả các dòng dữ liệu. 
+                    Bạn có thể chỉnh sửa từng ô riêng lẻ sau khi áp dụng.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Hủy
+                </button>
+                <button type="button" class="btn btn-primary" @onclick="ApplyValues">
+                    <i class="fas fa-check me-1"></i>Áp dụng
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Dictionary<StudyAttemptType, decimal> DefaultFees { get; set; } = new();
+    
+    [Parameter]
+    public decimal IncreaseRate { get; set; } = 0;
+    
+    [Parameter]
+    public EventCallback<Dictionary<StudyAttemptType, decimal>> OnApply { get; set; }
+
+    protected override void OnInitialized()
+    {
+        // Initialize default fees
+        DefaultFees[StudyAttemptType.FirstAttempt] = 0;
+        DefaultFees[StudyAttemptType.SecondAttempt] = 0;
+        DefaultFees[StudyAttemptType.Improvement] = 0;
+        DefaultFees[StudyAttemptType.Retake] = 0;
+        DefaultFees[StudyAttemptType.Special] = 0;
+    }
+
+    private async Task ApplyValues()
+    {
+        if (IncreaseRate > 0)
+        {
+            // Apply increase rate to all values
+            foreach (var key in DefaultFees.Keys.ToList())
+            {
+                DefaultFees[key] = DefaultFees[key] * (1 + IncreaseRate / 100);
+            }
+        }
+        
+        await OnApply.InvokeAsync(DefaultFees);
+    }
+}
