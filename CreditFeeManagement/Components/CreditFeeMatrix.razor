@@ -1,0 +1,288 @@
+@using CreditFeeManagement.Models
+@using CreditFeeManagement.ViewModels
+@inject IJSRuntime JSRuntime
+
+<div class="credit-fee-matrix-container">
+    <!-- Header với các nút thao tác -->
+    <div class="matrix-header mb-3">
+        <div class="row">
+            <div class="col-md-6">
+                <h4>Quản lý phí tín chỉ</h4>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="btn-group" role="group">
+                    <button class="btn btn-success btn-sm" @onclick="SaveAll" disabled="@IsLoading">
+                        <i class="fas fa-save"></i> Lưu tất cả
+                    </button>
+                    <button class="btn btn-info btn-sm" @onclick="ExportToExcel">
+                        <i class="fas fa-file-excel"></i> Xuất Excel
+                    </button>
+                    <button class="btn btn-warning btn-sm" @onclick="ImportFromExcel">
+                        <i class="fas fa-file-import"></i> Nhập Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch Operations Panel -->
+    <div class="batch-operations-panel card mb-3">
+        <div class="card-body">
+            <h6 class="card-title">Thao tác hàng loạt</h6>
+            <div class="row g-2 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label">Giá trị điền:</label>
+                    <input type="number" @bind="ViewModel.FillValue" class="form-control form-control-sm" 
+                           placeholder="VD: 500000" min="0" step="1000">
+                </div>
+                <div class="col-md-3">
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-outline-primary btn-sm" @onclick="FillSelectedCells" 
+                                disabled="@(ViewModel.FillValue == null || SelectedCells.Count == 0)">
+                            <i class="fas fa-fill"></i> Điền ô đã chọn
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="FillAllCurrentTab" 
+                                disabled="@(ViewModel.FillValue == null)">
+                            <i class="fas fa-fill-drip"></i> Điền tất cả tab hiện tại
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-outline-danger btn-sm" @onclick="ClearSelected" 
+                            disabled="@(SelectedCells.Count == 0)">
+                        <i class="fas fa-eraser"></i> Xóa đã chọn
+                    </button>
+                </div>
+                <div class="col-md-3">
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-outline-info btn-sm" @onclick="CopySelected" 
+                                disabled="@(SelectedCells.Count == 0)">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                        <button class="btn btn-outline-success btn-sm" @onclick="PasteToSelected" 
+                                disabled="@(CopiedValue == null || SelectedCells.Count == 0)">
+                            <i class="fas fa-paste"></i> Paste
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <span class="badge bg-info">Đã chọn: @SelectedCells.Count ô</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Type Tabs -->
+    <ul class="nav nav-tabs" id="studentTypeTabs" role="tablist">
+        @foreach (var studentType in ViewModel.StudentTypes)
+        {
+            <li class="nav-item" role="presentation">
+                <button class="nav-link @(studentType.Id == ViewModel.SelectedStudentTypeId ? "active" : "")" 
+                        id="tab-@studentType.Id" data-bs-toggle="tab" 
+                        @onclick="() => SelectStudentType(studentType.Id)" 
+                        type="button" role="tab">
+                    @studentType.Name
+                </button>
+            </li>
+        }
+    </ul>
+
+    <!-- Matrix Grid cho từng Student Type -->
+    <div class="tab-content mt-3" id="studentTypeTabContent">
+        @if (ViewModel.SelectedStudentTypeId > 0)
+        {
+            <div class="tab-pane fade show active">
+                <div class="matrix-grid-container">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover matrix-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th class="module-header">Module Type</th>
+                                    @foreach (StudyType studyType in ViewModel.StudyTypes)
+                                    {
+                                        <th class="study-type-header text-center">
+                                            @studyType.GetDisplayName()
+                                        </th>
+                                    }
+                                    <th class="action-header text-center">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var moduleType in ViewModel.ModulesTypes)
+                                {
+                                    <tr>
+                                        <td class="module-name">
+                                            <strong>@moduleType.Name</strong>
+                                            @if (!string.IsNullOrEmpty(moduleType.Code))
+                                            {
+                                                <br><small class="text-muted">(@moduleType.Code)</small>
+                                            }
+                                        </td>
+                                        @foreach (StudyType studyType in ViewModel.StudyTypes)
+                                        {
+                                            var cellId = $"cell_{ViewModel.SelectedStudentTypeId}_{moduleType.Id}_{(int)studyType}";
+                                            var currentValue = ViewModel.GetFee(ViewModel.SelectedStudentTypeId, moduleType.Id, studyType);
+                                            var isSelected = IsCellSelected(ViewModel.SelectedStudentTypeId, moduleType.Id, studyType);
+                                            
+                                            <td class="fee-cell @(isSelected ? "selected" : "")">
+                                                <input type="number" 
+                                                       id="@cellId"
+                                                       class="form-control form-control-sm text-end fee-input @(isSelected ? "selected" : "")"
+                                                       value="@(currentValue == 0 ? "" : currentValue.ToString("N0"))"
+                                                       @onchange="(e) => UpdateFee(ViewModel.SelectedStudentTypeId, moduleType.Id, studyType, e)"
+                                                       @onclick="(e) => SelectCell(ViewModel.SelectedStudentTypeId, moduleType.Id, studyType, e)"
+                                                       @onkeydown="(e) => HandleKeyDown(e, ViewModel.SelectedStudentTypeId, moduleType.Id, studyType)"
+                                                       placeholder="0"
+                                                       min="0"
+                                                       step="1000" />
+                                            </td>
+                                        }
+                                        <td class="text-center">
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <button class="btn btn-outline-primary btn-sm" 
+                                                        @onclick="() => FillRow(moduleType.Id)"
+                                                        disabled="@(ViewModel.FillValue == null)"
+                                                        title="Điền hàng">
+                                                    <i class="fas fa-arrows-alt-h"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger btn-sm" 
+                                                        @onclick="() => ClearRow(moduleType.Id)"
+                                                        title="Xóa hàng">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <td><strong>Thao tác cột:</strong></td>
+                                    @foreach (StudyType studyType in ViewModel.StudyTypes)
+                                    {
+                                        <td class="text-center">
+                                            <div class="btn-group-vertical btn-group-sm" role="group">
+                                                <button class="btn btn-outline-primary btn-sm" 
+                                                        @onclick="() => FillColumn(studyType)"
+                                                        disabled="@(ViewModel.FillValue == null)"
+                                                        title="Điền cột">
+                                                    <i class="fas fa-arrows-alt-v"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger btn-sm" 
+                                                        @onclick="() => ClearColumn(studyType)"
+                                                        title="Xóa cột">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    }
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Status Bar -->
+    @if (!string.IsNullOrEmpty(ViewModel.StatusMessage))
+    {
+        <div class="alert alert-info mt-3" role="alert">
+            @ViewModel.StatusMessage
+        </div>
+    }
+    
+    @if (IsLoading)
+    {
+        <div class="loading-overlay">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .credit-fee-matrix-container {
+        position: relative;
+    }
+    
+    .matrix-table {
+        font-size: 0.9rem;
+    }
+    
+    .module-header {
+        min-width: 200px;
+        background-color: #343a40 !important;
+    }
+    
+    .study-type-header {
+        min-width: 120px;
+        background-color: #495057 !important;
+    }
+    
+    .action-header {
+        width: 120px;
+    }
+    
+    .module-name {
+        background-color: #f8f9fa;
+        font-weight: 500;
+        vertical-align: middle;
+    }
+    
+    .fee-cell {
+        width: 120px;
+        padding: 2px !important;
+    }
+    
+    .fee-input {
+        border: 1px solid #dee2e6;
+        text-align: right;
+        font-family: 'Courier New', monospace;
+    }
+    
+    .fee-input:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+    
+    .fee-input.selected {
+        background-color: #e3f2fd;
+        border-color: #2196f3;
+    }
+    
+    .fee-cell.selected {
+        background-color: #e3f2fd;
+    }
+    
+    .batch-operations-panel {
+        border-left: 4px solid #0d6efd;
+    }
+    
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+    
+    .nav-tabs .nav-link {
+        font-weight: 500;
+    }
+    
+    .nav-tabs .nav-link.active {
+        font-weight: 600;
+        background-color: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
+</style>

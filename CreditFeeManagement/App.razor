@@ -1,0 +1,25 @@
+<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Không tìm thấy</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <div class="container-fluid">
+                <div class="row justify-content-center">
+                    <div class="col-md-6 text-center">
+                        <div class="error-page">
+                            <h1 class="display-1 text-muted">404</h1>
+                            <h2>Không tìm thấy trang</h2>
+                            <p class="lead">Trang bạn đang tìm kiếm không tồn tại.</p>
+                            <a href="/" class="btn btn-primary">
+                                <i class="fas fa-home"></i> Về trang chủ
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>
