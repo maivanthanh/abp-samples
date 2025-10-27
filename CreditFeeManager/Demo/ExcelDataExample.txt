@@ -1,0 +1,19 @@
+Loại học	Lý thuyết	Thực hành	Đồ án	Thực tập	Chuyên đề
+Học lần 1	150000	200000	300000	250000	180000
+Học lần 2	180000	240000	360000	300000	216000
+Học cải thiện	200000	280000	400000	350000	240000
+Học lại	250000	350000	500000	450000	300000
+Học bổ sung	120000	160000	240000	200000	144000
+
+HƯỚNG DẪN SỬ DỤNG COPY/PASTE TỪ EXCEL:
+
+1. Tạo file Excel với cấu trúc như trên
+2. Copy toàn bộ dữ liệu (bao gồm header)
+3. Trong ứng dụng, nhấn nút "Paste Excel"
+4. Dữ liệu sẽ tự động được nhập vào bảng
+
+Lưu ý:
+- Cột đầu tiên phải là "Loại học"
+- Các cột tiếp theo phải khớp với tên loại môn học trong database
+- Dữ liệu số phải là số nguyên hoặc số thập phân
+- Không được có dữ liệu trống trong các ô số
